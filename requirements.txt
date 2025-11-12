@@ -4,3 +4,4 @@ pillow
 python-dotenv
 azure-storage-blob
 azure-ai-documentintelligence
+openai
