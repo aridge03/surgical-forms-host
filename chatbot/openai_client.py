@@ -1,19 +1,16 @@
-import os
+import streamlit as st
 from openai import AzureOpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
-
 
 class OpenAIClient:
     def __init__(self):
         self.client = AzureOpenAI(
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_version=os.getenv("AZURE_OPENAI_VERSION")
-    )
+            api_key=st.secrets["AZURE_OPENAI_API_KEY"],
+            azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
+            api_version=st.secrets["AZURE_OPENAI_VERSION"]
+        )
 
-    def chat_completion(self, messages, model=os.getenv("AZURE_OPENAI_DEPLOYMENT")):
+    def chat_completion(self, messages, model=None):
+        model = model or st.secrets["AZURE_OPENAI_DEPLOYMENT"]
         response = self.client.chat.completions.create(
             model=model,
             messages=messages,

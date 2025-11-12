@@ -1,25 +1,32 @@
 # extract_text.py
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-
-from dotenv import load_dotenv
+import streamlit as st
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeDocumentRequest
 
-load_dotenv()
 
-ENDPOINT = os.getenv("AZURE_DOCINTEL_ENDPOINT")
-KEY = os.getenv("AZURE_DOCINTEL_KEY")
-MODEL_ID = os.getenv("AZURE_DOCUMENT_INTELLIGENCE_MODEL_ID")
+# --- Load Azure keys from Streamlit secrets ---
+try:
+    ENDPOINT = st.secrets["AZURE_DOCINTEL_ENDPOINT"]
+    KEY = st.secrets["AZURE_DOCINTEL_KEY"]
+    MODEL_ID = st.secrets["AZURE_DOCUMENT_INTELLIGENCE_MODEL_ID"]
+except KeyError as e:
+    raise RuntimeError(
+        f"Missing required key in Streamlit secrets: {e}\n\n"
+        "In your Streamlit app → ⋯ → Edit secrets, add:\n"
+        'AZURE_DOCINTEL_ENDPOINT = "https://<your-resource>.cognitiveservices.azure.com"\n'
+        'AZURE_DOCINTEL_KEY = "<your-key>"\n'
+        'AZURE_DOCUMENT_INTELLIGENCE_MODEL_ID = "<your-model-id>"'
+    )
 
-if not (ENDPOINT and KEY and MODEL_ID):
-    raise RuntimeError("Missing Azure env vars in .env")
 
+# --- Create client ---
 _client = DocumentIntelligenceClient(ENDPOINT, AzureKeyCredential(KEY))
 
 
+# --- Field normalization helper ---
 def _normalize_value(field: Optional[Dict[str, Any]]) -> str:
     """Convert Azure checkbox/selection output to Yes/No/Text."""
     if not field:
@@ -36,13 +43,16 @@ def _normalize_value(field: Optional[Dict[str, Any]]) -> str:
         "unselected": "No", "unchecked": "No", "false": "No", "no": "No", "0": "No"
     }
 
-    if v.lower() in mapping: return mapping[v.lower()]
-    if t.lower() in mapping: return mapping[t.lower()]
+    if v.lower() in mapping:
+        return mapping[v.lower()]
+    if t.lower() in mapping:
+        return mapping[t.lower()]
     return v or t
 
 
+# --- Main functions ---
 def extract_form_bytes(pdf_bytes: bytes) -> Dict[str, str]:
-    """Main function: take PDF bytes, return dict of fields -> values."""
+    """Analyze PDF bytes and return extracted fields."""
     req = AnalyzeDocumentRequest(bytes_source=pdf_bytes)
     poller = _client.begin_analyze_document(MODEL_ID, req)
     result = poller.result()
