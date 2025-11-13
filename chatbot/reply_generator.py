@@ -89,7 +89,6 @@ Use these enhanced guidance rules:
     - Explain clearly what went wrong in a friendly but direct way.
     - Example style (but rephrase naturally):
       FAIL
-      for example, look at the form and if applicable say- Your surgeon selection is inconsistent — you selected the next available surgeon while also naming a specific surgeon. These choices contradict each other.
       Please choose either the next available surgeon OR enter a specific surgeon, but not both.
 
 • If any issue mentions "Invalid FIT section":
