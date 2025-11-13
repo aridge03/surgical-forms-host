@@ -76,6 +76,19 @@ with result_container:
         data_with_status = dict(st.session_state.last_data)
         data_with_status["validation_status"] = status_tag.upper()
 
+        # ✅ NEW: add the sanity-check issues as `failed`
+        failed_list = st.session_state.get("last_failed")
+        if failed_list:
+            if isinstance(failed_list, list):
+                data_with_status["failed"] = " | ".join(str(x) for x in failed_list)
+            else:
+                data_with_status["failed"] = str(failed_list)
+
+        # ✅ NEW: add the full LLM reply as `message`
+        last_msg = st.session_state.get("last_message")
+        if last_msg:
+            data_with_status["message"] = str(last_msg)
+
         csv_bytes = dict_to_csv_bytes(data_with_status)
 
         col1, col2 = st.columns(2)
@@ -97,6 +110,7 @@ with result_container:
                     st.success(f"Case saved ✅\nBlob Path: {blob_path}")
                 except Exception as e:
                     st.error(f"Could not save to case management: {e}")
+
 
     else:
         st.info("No validation yet. Upload a PDF below and click Validate.")
@@ -132,6 +146,8 @@ if st.button("Validate"):
     parts = reply_text.split(maxsplit=1)
     clean_text = parts[1] if len(parts) > 1 else ""
     st.session_state.last_text = clean_text.strip()
-    st.session_state.last_data = data  # <-- store extracted fields for CSV & case update
+    st.session_state.last_data = data                      # extracted fields
+    st.session_state.last_failed = check                   # NEW: sanity_check list
+    st.session_state.last_message = reply_text
 
     st.rerun()
