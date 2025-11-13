@@ -39,24 +39,33 @@ def data_sanity_check(data: dict) -> list:
         pass  # OK
     elif is_no(next_available) and has_text(surgeon_name):
         pass  # OK
+    elif is_yes(next_available) and has_text(surgeon_name):
+        errors.append("Invalid surgeon routing: cannot have both next available and a specific surgeon selected.")
     else:
-        errors.append("Invalid surgeon routing: check Next Available vs Specific Surgeon data.")
+        errors.append("Invalid surgeon routing: must have either a next available or a specific surgeon selected.")
+
 
     # --- Positive FIT Logic ---
     if is_yes(positive_fit) and has_text(reason_ineligibility):
         pass
     elif is_no(positive_fit) and not has_text(reason_ineligibility):
         pass
+    elif is_no(positive_fit) and has_text(reason_ineligibility):
+        errors.append("Invalid FIT section: check Positive FIT with your Ineligibility.")
     else:
-        errors.append("Invalid FIT section: check Positive FIT vs Reason for Ineligibility.")
+        errors.append("Invalid FIT section: cplease provide Ineligibility reason with check Positive FIT result.")
+
 
     # --- Other Condition Logic ---
     if is_yes(other_condition_flag) and has_text(other_condition_text):
         pass
     elif is_no(other_condition_flag) and not has_text(other_condition_text):
         pass
+    elif is_no(other_condition_flag) and  has_text(other_condition_text):
+        errors.append("Invalid Other Condition section: Please select the other codinition option since you provided reasoning.")
     else:
-        errors.append("Invalid Other Condition section: flag/text mismatch.")
+        errors.append("Invalid Other Condition section: Please provide reasoning for your other codintion check.")
+
 
     # Final result
     if errors:
