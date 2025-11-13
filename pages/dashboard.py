@@ -161,11 +161,21 @@ if selected:
         # ---- show validation message ABOVE table ----
         if message_text:
             st.markdown("#### Validation Message")
-            st.text_area(
-                "",
-                value=str(message_text),
-                height=150,
-                key="validation_message",
+            st.markdown(
+                f"""
+                <div style="
+                    border: 1px solid #d1d5db;
+                    border-radius: 4px;
+                    padding: 8px 10px;
+                    background-color: #ffffff;
+                    white-space: pre-wrap;
+                    font-family: system-ui, sans-serif;
+                    font-size: 0.9rem;
+                ">
+                    {message_text}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
         # ---- Extracted data section ----
