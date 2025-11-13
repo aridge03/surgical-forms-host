@@ -124,11 +124,21 @@ if filtered.empty:
 
 
 # ---- selector ----
+# ---- selector ----
 selected = st.selectbox(
     "Select a file",
     options=filtered["name"].tolist(),
+    key="selected_file",
     format_func=lambda x: f"{status_icon(infer_status_from_name(x))} {x}"
 )
+
+# Force rerun whenever the user changes the file selection
+if "previous_file" not in st.session_state:
+    st.session_state.previous_file = selected
+
+if selected != st.session_state.previous_file:
+    st.session_state.previous_file = selected
+    st.rerun()
 
 
 # ---- details section ----
@@ -174,7 +184,7 @@ if selected:
 
         # ---- derive flags ----
         wrong_form_flag = any("wrong form" in e for e in error_lower)
-        surgeon_flag    = any("available surgeon" in e for e in error_lower)
+        surgeon_flag    = any("surgeon" in e for e in error_lower)
         fit_flag        = any("positive fit" in e for e in error_lower)
         other_flag      = any("other condition" in e for e in error_lower)
 
