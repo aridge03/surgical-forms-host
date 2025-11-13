@@ -1,18 +1,20 @@
-def data_sanity_check(data: dict) -> str:
+def data_sanity_check(data: dict) -> list:
     """
-    Basic deterministic data sanity validation.
-    Returns PASS or FAIL only.
-    Assumes fields are normalized to YES/NO/None or text.
+    Deterministic data sanity validation.
+    Returns a list of error messages.
+    If everything passes, returns ["PASS"].
     """
 
-    # ✅ Require correct program name
+    errors = []
+
+    # Required program name
     required_program_name = "Edmonton Zone FAST Program Facilitated Access to Surgical Treatment"
     program_name = data.get("Program name")
 
-    # if field missing OR does not match exactly → fail as wrong form
     if program_name is None or str(program_name).strip() != required_program_name:
-        return "FAIL wrong form"
+        errors.append("Wrong form: Program name does not match required value.")
 
+    # Helpers
     def is_yes(value):
         return str(value).strip().upper() == "YES"
 
@@ -22,6 +24,7 @@ def data_sanity_check(data: dict) -> str:
     def has_text(value):
         return value is not None and str(value).strip() != ""
 
+    # Extract fields
     next_available = data.get("Refer to Next Available Surgeon")
     surgeon_name = data.get("Refer to Specific Hospital or Surgeon")
 
@@ -33,26 +36,29 @@ def data_sanity_check(data: dict) -> str:
 
     # --- Surgeon Routing Logic ---
     if is_yes(next_available) and not has_text(surgeon_name):
-        pass_surgeon = True
+        pass  # OK
     elif is_no(next_available) and has_text(surgeon_name):
-        pass_surgeon = True
+        pass  # OK
     else:
-        return "FAIL please check your next available surgeon data"
+        errors.append("Invalid surgeon routing: check Next Available vs Specific Surgeon data.")
 
     # --- Positive FIT Logic ---
     if is_yes(positive_fit) and has_text(reason_ineligibility):
-        pass_fit = True
+        pass
     elif is_no(positive_fit) and not has_text(reason_ineligibility):
-        pass_fit = True
+        pass
     else:
-        return "FAIL please check your positive fit input"
+        errors.append("Invalid FIT section: check Positive FIT vs Reason for Ineligibility.")
 
     # --- Other Condition Logic ---
     if is_yes(other_condition_flag) and has_text(other_condition_text):
-        pass_other = True
+        pass
     elif is_no(other_condition_flag) and not has_text(other_condition_text):
-        pass_other = True
+        pass
     else:
-        return "FAIL please check your other condition data"
+        errors.append("Invalid Other Condition section: flag/text mismatch.")
 
-    return "PASS"
+    # Final result
+    if errors:
+        return errors
+    return ["PASS"]

@@ -43,6 +43,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 app_root = Path(__file__).resolve().parents[1]  # one level up from /pages
 logo_path = app_root / "cpe-government-of-alberta-logo.jpg"
 if logo_path.exists():
@@ -63,7 +64,6 @@ blobs_df = blobs_df.copy()
 blobs_df["status"] = blobs_df["name"].map(infer_status_from_name)
 blobs_df["timestamp"] = blobs_df["name"].map(name_to_dt)
 
-# ---- filters (sidebar) ----
 # ---- filters (sidebar) ----
 with st.sidebar:
     st.header("Filters")
@@ -99,17 +99,6 @@ with st.sidebar:
             start_date, end_date = start_default, end_default
 
         date_range = (start_date, end_date)
-
-# apply filters
-filtered = blobs_df[blobs_df["status"].isin(selected_status)].copy()
-
-# Only apply date filter to rows that HAVE a timestamp; drop those without when a range is set
-if date_range and filtered["timestamp"].notna().any():
-    start_dt = datetime.combine(date_range[0], datetime.min.time())
-    end_dt   = datetime.combine(date_range[1], datetime.max.time())
-    has_ts = filtered["timestamp"].notna()
-    filtered = filtered[has_ts & filtered["timestamp"].between(start_dt, end_dt)]
-
 
 # apply filters
 filtered = blobs_df[blobs_df["status"].isin(selected_status)].copy()
@@ -156,9 +145,73 @@ if selected:
     if df.empty:
         st.warning("This CSV has no rows.")
     else:
+        # take first row as a dict
         record = df.iloc[0].to_dict()
+
+        # pull out the special fields so they don't appear in the main list
+        message_text = record.pop("message", None)
+        failed_raw   = record.pop("failed", "")
+
+        # build error list from 'failed' column
+        if isinstance(failed_raw, str):
+            error_list = [
+                e.strip() for e in failed_raw.split("|")
+                if e.strip() and e.strip().upper() != "PASS"
+            ]
+        elif isinstance(failed_raw, list):
+            error_list = [e for e in failed_raw if isinstance(e, str) and e.strip()]
+        else:
+            error_list = []
+
+        # vertical table of remaining fields
         vertical_df = pd.DataFrame(list(record.items()), columns=["Field", "Value"])
-        st.dataframe(vertical_df, use_container_width=True)
+
+        # map which error messages relate to which fields
+        field_error_map = {
+            "Program name": [
+                "Wrong form: Program name",
+            ],
+            "Refer to Next Available Surgeon": [
+                "Invalid surgeon routing",
+            ],
+            "Refer to Specific Hospital or Surgeon": [
+                "Invalid surgeon routing",
+            ],
+            "Positive FIT": [
+                "Invalid FIT section",
+            ],
+            "Reason for Ineligibility": [
+                "Invalid FIT section",
+            ],
+            "Other Condition Check": [
+                "Invalid Other Condition section",
+            ],
+            "Other Condition": [
+                "Invalid Other Condition section",
+            ],
+        }
+
+        def highlight_errors(row):
+            field_name = str(row["Field"])
+            keywords = field_error_map.get(field_name, [])
+            for err in error_list:
+                for kw in keywords:
+                    if kw in err:
+                        return ["background-color: #fee2e2"] * len(row)
+            return [""] * len(row)
+
+        styled = vertical_df.style.apply(highlight_errors, axis=1)
+        st.dataframe(styled, use_container_width=True)
+
+        # show the message from the reply generator under the table
+        if message_text:
+            st.markdown("#### Validation Message")
+            st.text_area(
+                "Message",
+                value=str(message_text),
+                height=150,
+                disabled=True
+            )
 
     st.download_button(
         "Download this CSV",

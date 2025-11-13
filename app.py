@@ -31,6 +31,10 @@ if "last_text" not in st.session_state:
     st.session_state.last_text = None
 if "last_data" not in st.session_state:   # <-- keep the extracted fields for CSV / case update
     st.session_state.last_data = None
+if "last_failed" not in st.session_state:  # NEW: store sanity_check list
+    st.session_state.last_failed = None
+if "last_message" not in st.session_state:  # NEW: store full reply from LLM
+    st.session_state.last_message = None
 
 # ----- helpers -----
 def dict_to_lines(d: dict) -> str:
