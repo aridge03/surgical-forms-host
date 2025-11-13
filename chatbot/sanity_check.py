@@ -42,7 +42,7 @@ def data_sanity_check(data: dict) -> list:
     elif is_yes(next_available) and has_text(surgeon_name):
         errors.append("Invalid surgeon routing: cannot have both next available and a specific surgeon selected.")
     else:
-        errors.append("Invalid surgeon routing: must have either a next available or a specific surgeon selected.")
+        errors.append("Invalid surgeon routing: must have either a next available or a specific surgeon selected not neither.")
 
 
     # --- Positive FIT Logic ---
