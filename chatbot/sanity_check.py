@@ -51,9 +51,9 @@ def data_sanity_check(data: dict) -> list:
     elif is_no(positive_fit) and not has_text(reason_ineligibility):
         pass
     elif is_no(positive_fit) and has_text(reason_ineligibility):
-        errors.append("Invalid FIT section: check Positive FIT with your Ineligibility.")
+        errors.append("Invalid FIT section: If you provided an Ineligibility reason you must also select Positive FIT not just the Ineligibility reason.")
     else:
-        errors.append("Invalid FIT section: please provide Ineligibility reason with check Positive FIT result.")
+        errors.append("Invalid FIT section: If you select Positive FIT you must also provide aan Ineligibility reason not just the Positive FIT.")
 
 
     # --- Other Condition Logic ---
