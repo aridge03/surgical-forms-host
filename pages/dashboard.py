@@ -208,7 +208,9 @@ if selected:
             ]:
                 return ["background-color: #fee2e2"] * len(row)
 
-            return [""]
+            # default: no highlight, match length of row
+            return [""] * len(row)
+
 
         styled = vertical_df.style.apply(highlight_errors, axis=1)
         st.dataframe(styled, use_container_width=True)
