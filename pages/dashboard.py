@@ -152,10 +152,10 @@ if selected:
         if message_text:
             st.markdown("#### Validation Message")
             st.text_area(
-                "Message",
+                "",
                 value=str(message_text),
                 height=150,
-                disabled=True
+                key="validation_message",
             )
 
         # ---- Extracted data section ----

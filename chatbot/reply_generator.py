@@ -95,8 +95,7 @@ Use these enhanced guidance rules:
     - Provide a more descriptive explanation of the mismatch.
     - Example style:
       FAIL
-      The Positive FIT section is inconsistent — a YES requires a reason for ineligibility, while a NO should not have any reason entered.
-      Please correct the FIT selection so it matches the presence or absence of a reason.
+      The Positive FIT section is inconsistent — please make sure that if you select Positive FIT, you have both checked the option and provided a reason.      Please correct the FIT selection so it matches the presence or absence of a reason.
 
 • If any issue mentions "Invalid Other Condition section":
     - Provide a clearer explanation of the mismatch.
