@@ -53,7 +53,7 @@ def data_sanity_check(data: dict) -> list:
     elif is_no(positive_fit) and has_text(reason_ineligibility):
         errors.append("Invalid FIT section: check Positive FIT with your Ineligibility.")
     else:
-        errors.append("Invalid FIT section: cplease provide Ineligibility reason with check Positive FIT result.")
+        errors.append("Invalid FIT section: please provide Ineligibility reason with check Positive FIT result.")
 
 
     # --- Other Condition Logic ---
@@ -62,9 +62,9 @@ def data_sanity_check(data: dict) -> list:
     elif is_no(other_condition_flag) and not has_text(other_condition_text):
         pass
     elif is_no(other_condition_flag) and  has_text(other_condition_text):
-        errors.append("Invalid Other Condition section: Please select the other codinition option since you provided reasoning.")
+        errors.append("Invalid Other Condition section: Please check the other condition box since you provided other condition description.")
     else:
-        errors.append("Invalid Other Condition section: Please provide reasoning for your other codintion check.")
+        errors.append("Invalid Other Condition section: Please provide other condition descritption since you checked off the other condition option.")
 
 
     # Final result
