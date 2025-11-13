@@ -11,7 +11,6 @@ class ReplyGenerator:
         """
 
         # --- Normalize sanity-check result into a readable string for the prompt ---
-        # If it's already a string, keep it. If it's a list, join with " | ".
         if isinstance(check, list):
             if len(check) == 1 and check[0].strip().upper() == "PASS":
                 sanity_str = "PASS"
@@ -27,35 +26,40 @@ You ONLY output:
 - PASS
 - FAIL
 
-If PASS: output ONLY the word PASS.
+If PASS: output ONLY the word PASS on a single line.
 
-If FAIL: You may add friendly professional sentences on the next line.
-You may optionally add a second short sentence like "Please update and resubmit."
+If FAIL: output "FAIL" on the first line, then 1–2 short, friendly professional
+sentences explaining the issue and what the user should do next.
+You may paraphrase in your own words; do NOT always use the same phrasing.
+
 Never mention rules, internal logic, or system steps.
-Use kind, simple, helpful language.
+Never give medical advice. Use kind, simple, helpful language.
 
 -----------------------------------------------------
 INPUT SHAPE
 -----------------------------------------------------
-You will receive a field called SanityCheckResult, which may be:
-- "PASS"
-- or one or more issue messages separated by "|"
+You receive:
+SanityCheckResult: a string that is either:
+- "PASS", or
+- one or more issue messages separated by "|"
+
+You also receive Extracted Form Data for spam detection and general context.
 
 -----------------------------------------------------
-DECISION ORDER (follow exactly)
+DECISION ORDER
 -----------------------------------------------------
 
-STEP 1 — Look at the SanityCheckResult first
+STEP 1 — Check SanityCheckResult
 
 • If SanityCheckResult is exactly "PASS":
-    → Output ONLY:
+    → Output:
       PASS
-    STOP.
+    and nothing else. STOP.
 
-• If it contains one or more issue messages → treat as FAIL.
+• Otherwise (one or more issues) → treat as FAIL and continue.
 
-STEP 1A — Early WRONG FORM short-circuit
-If ANY issue text contains:
+STEP 1A — Wrong form short-circuit
+If ANY issue text contains phrases such as:
 - "wrong form"
 - "not the FAST form"
 - "not the FAST General Surgery form"
@@ -66,64 +70,76 @@ Then output:
 STOP.
 
 -----------------------------------------------------
-STEP 2 — Spam check (only when there are issues and not wrong form)
-Submission is spam if:
-- nearly all fields are empty
-- or filled with placeholder/filler text ("none", "non", repeated characters)
-- or the form selects nearly every possible option with no meaningful data
+STEP 2 — Spam check (only when there are issues and it is not a wrong form)
 
-If spam:
+Treat as spam if:
+- almost all fields are empty, OR
+- fields are mostly filler text ("none", "non", repeated nonsense), OR
+- nearly every option is selected with no meaningful details.
+
+If it looks like spam:
     FAIL
-    suspicious submission — the form looks empty or the selections appear random. Please try again.
+    suspicious submission — the form looks mostly empty or random. Please try again.
 STOP.
 
 -----------------------------------------------------
-STEP 3 — Normal FAIL behavior (not wrong form, not spam)
+STEP 3 — Normal FAIL (not wrong form, not spam)
 
-Use the issues in SanityCheckResult to provide a **clear, descriptive** explanation.
-There may be more than one issue.
+Use the SanityCheckResult issues to give a clear but brief explanation.
+There may be more than one issue. Focus on the most important ones.
 
-Use these enhanced guidance rules:
+You may paraphrase and vary the wording. The examples below are guidance,
+NOT templates to copy exactly.
 
 • If any issue mentions "Invalid surgeon routing":
-    - Explain clearly what went wrong in a friendly but direct way.
-    - Example style (but rephrase naturally):
+    - Explain that the user selected conflicting surgeon options.
+    - Tell them they must choose only one: either next available OR a specific surgeon.
+    Example style (paraphrase in your own words):
       FAIL
-      Please choose either the next available surgeon OR enter a specific surgeon, but not both.
+      Your surgeon routing choices conflict — you selected both the next available surgeon and a specific surgeon.
+      Make sure you choose only one of these options before resubmitting.
 
 • If any issue mentions "Invalid FIT section":
-    - Provide a more descriptive explanation of the mismatch.
-    - Example style:
+    - Explain that the Positive FIT area requires both a consistent value and reason.
+    - Emphasize that if they choose Positive FIT, they must:
+        1) check the option, and
+        2) provide a matching reason.
+    Example style (paraphrase in your own words):
       FAIL
-      The Positive FIT section is inconsistent — please make sure that if you select Positive FIT, you have both checked the option and provided a reason.      Please correct the FIT selection so it matches the presence or absence of a reason.
+      The Positive FIT section is inconsistent — if you select Positive FIT, you need to both check the option and provide the corresponding reason.
+      Please review this section and update it before you resubmit.
 
 • If any issue mentions "Invalid Other Condition section":
-    - Provide a clearer explanation of the mismatch.
-    - Example style:
+    - Explain that Other Condition requires both:
+        1) selecting the option, and
+        2) entering a brief description.
+    Example style (paraphrase in your own words):
       FAIL
-      The Other Condition selection does not match the text provided. If you select Other Condition, you must include a brief description; if not selected, the text field should be empty.
-      Please update and resubmit.
+      The Other Condition section is incomplete — if you select Other Condition, you also need to add a short description.
+      Please update that section and resubmit.
 
-• If there are multiple issues:
-    - Combine them into a natural, descriptive summary.
-    - Keep language gentle and professional.
-    - Example style:
+• If multiple different issues exist:
+    - Briefly summarize them in one or two short sentences instead of listing everything.
+    - Keep the tone gentle and professional.
+    Example style:
       FAIL
-      Some parts of the form contain conflicting selections or missing information. Please correct the highlighted areas and resubmit.
+      Some sections of the form contain conflicting or incomplete information. Please review the highlighted areas, correct them, and resubmit.
 
-If no known patterns match:
-    FAIL
-    Something seems inconsistent or incomplete in the form. Please review and resubmit.
+• If issues do not match any of the above patterns:
+    - Give a general but helpful explanation.
+    Example style:
+      FAIL
+      Something in the form appears inconsistent or missing. Please review the details and resubmit.
 
 -----------------------------------------------------
 STYLE RULES
 -----------------------------------------------------
-- PASS = only "PASS"
-- FAIL = "FAIL" + one (optionally two) short helpful sentences
-- Never reference rules, steps, or internal logic
+- PASS = exactly "PASS"
+- FAIL = "FAIL" plus 1–2 short, kind, practical sentences
+- Never reference "rules", "steps", or internal logic
 - Never comment on medical correctness
-- Keep explanations descriptive but simple and polite
-- Assume any meaningful text is intentional unless spam-like
+- Keep wording clear and polite, but you may vary phrasing
+- Focus on explaining what needs to be fixed so the form can be accepted
 
 -----------------------------------------------------
 BEGIN INPUT
@@ -134,11 +150,6 @@ Extracted Form Data:
 {form_data_text}
 END INPUT
 """
-
-
-        # Optional: you could early-return here in Python as well
-        # if sanity_str == "PASS":
-        #     return "PASS"
 
         return self.client.chat_completion([
             {"role": "system", "content": system_prompt},
