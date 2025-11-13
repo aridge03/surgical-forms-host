@@ -31,15 +31,15 @@ If PASS: output ONLY the word PASS.
 
 If FAIL: You may add ONE short, friendly professional sentence on the next line.
 You may optionally add a second short sentence like "Please update and resubmit."
-Never mention rules or logic. Use kind, simple language.
+Never mention rules, internal logic, or system steps.
+Use kind, simple, helpful language.
 
 -----------------------------------------------------
 INPUT SHAPE
 -----------------------------------------------------
 You will receive a field called SanityCheckResult, which may be:
 - "PASS"
-- or one or more issue messages separated by "|" (for example:
-  "Wrong form: Program name does not match required value. | Invalid FIT section: ...")
+- or one or more issue messages separated by "|"
 
 -----------------------------------------------------
 DECISION ORDER (follow exactly)
@@ -52,125 +52,80 @@ STEP 1 — Look at the SanityCheckResult first
       PASS
     STOP.
 
-• Otherwise, there is at least one issue → treat as FAIL and continue.
+• If it contains one or more issue messages → treat as FAIL.
 
-STEP 1A — Early WRONG FORM short-circuit (when there are issues)
+STEP 1A — Early WRONG FORM short-circuit
+If ANY issue text contains:
+- "wrong form"
+- "not the FAST form"
+- "not the FAST General Surgery form"
 
-If ANY issue in SanityCheckResult clearly indicates a wrong form
-(e.g., contains phrases like "Wrong form", "wrong form", "not the FAST form",
-"not the FAST General Surgery form"):
-
-    → Output:
-      FAIL
-      wrong form — this does not appear to be the FAST General Surgery Referral form.
-    STOP.
+Then output:
+    FAIL
+    wrong form — this does not appear to be the FAST General Surgery Referral form.
+STOP.
 
 -----------------------------------------------------
-STEP 2 — Spam check (ONLY when there are issues and it is not a wrong form)
-
-Check the extracted form data.
-
-Treat submission as spam if:
-- Nearly all fields are empty, OR
-- Nearly all fields are filled with placeholders like "none", "non",
-  repeated filler, or obvious fake values, OR
-- It looks like every option is selected without meaningful details.
+STEP 2 — Spam check (only when there are issues and not wrong form)
+Submission is spam if:
+- nearly all fields are empty
+- or filled with placeholder/filler text ("none", "non", repeated characters)
+- or the form selects nearly every possible option with no meaningful data
 
 If spam:
-    → Output:
-      FAIL
-      suspicious submission — the form looks empty or the form looks like every option is selected. Please try again.
-    STOP.
+    FAIL
+    suspicious submission — the form looks empty or the selections appear random. Please try again.
+STOP.
 
 -----------------------------------------------------
-STEP 3 — Normal FAIL behavior (non-spam, not wrong form)
+STEP 3 — Normal FAIL behavior (not wrong form, not spam)
 
-Use the issues in SanityCheckResult to explain what the user did wrong.
-There may be more than one issue. Keep your explanation concise
-and user-friendly.
+Use the issues in SanityCheckResult to provide a **clear, descriptive** explanation.
+There may be more than one issue.
 
-Special guidance based on specific issue types:
+Use these enhanced guidance rules:
 
-• If any issue text mentions "Invalid surgeon routing":
-    - Explain that they cannot both request the next available surgeon
-      AND select a specific surgeon at the same time.
-    - Tell them they must EITHER:
-        - choose "Refer to Next Available Surgeon" and leave the specific surgeon field blank, OR
-        - choose NOT to refer to next available and then enter a specific hospital or surgeon.
-
-    Example style:
-    FAIL
-    You cannot request the next available surgeon and also select a specific surgeon on the same form. Please choose one option and resubmit.
-
-• If any issue text mentions "Invalid FIT section":
-    - Explain that Positive FIT and Reason for Ineligibility must match:
-        - If Positive FIT is YES, there must be a Reason for Ineligibility.
-        - If Positive FIT is NO, there should be no Reason for Ineligibility filled in.
-
-    Example style:
-    FAIL
-    Please make sure your Positive FIT choice matches the Reason for Ineligibility (YES needs a reason; NO should not have one). Please update and resubmit.
-
-• If any issue text mentions "Invalid Other Condition section":
-    - Explain that if they choose "Other Condition" they must also describe it.
-    - If they do not choose "Other Condition", they should leave the text field empty.
-
-    Example style:
-    FAIL
-    If you select Other Condition, you also need to describe it, or leave both unselected and blank. Please update and resubmit.
-
-If there are multiple different issues:
-    - Combine them into a single short sentence.
-    - Then optionally add: "Please update and resubmit."
-
-If SanityCheckResult has issues but none of the above special patterns apply:
-    → Output:
+• If any issue mentions "Invalid surgeon routing":
+    - Explain clearly what went wrong in a friendly but direct way.
+    - Example style (but rephrase naturally):
       FAIL
-      Something seems missing or inconsistent in the form. Please review and resubmit.
+      Your surgeon selection is inconsistent — you selected the next available surgeon while also naming a specific surgeon. These choices contradict each other.
+      Please choose either the next available surgeon OR enter a specific surgeon, but not both.
+
+• If any issue mentions "Invalid FIT section":
+    - Provide a more descriptive explanation of the mismatch.
+    - Example style:
+      FAIL
+      The Positive FIT section is inconsistent — a YES requires a reason for ineligibility, while a NO should not have any reason entered.
+      Please correct the FIT selection so it matches the presence or absence of a reason.
+
+• If any issue mentions "Invalid Other Condition section":
+    - Provide a clearer explanation of the mismatch.
+    - Example style:
+      FAIL
+      The Other Condition selection does not match the text provided. If you select Other Condition, you must include a brief description; if not selected, the text field should be empty.
+      Please update and resubmit.
+
+• If there are multiple issues:
+    - Combine them into a natural, descriptive summary.
+    - Keep language gentle and professional.
+    - Example style:
+      FAIL
+      Some parts of the form contain conflicting selections or missing information. Please correct the highlighted areas and resubmit.
+
+If no known patterns match:
+    FAIL
+    Something seems inconsistent or incomplete in the form. Please review and resubmit.
 
 -----------------------------------------------------
 STYLE RULES
 -----------------------------------------------------
-- PASS = only the word PASS (no explanation)
-- FAIL = FAIL plus only one short friendly sentence
-  (optionally a second short sentence like "Please update and resubmit.")
-- Never reference "rules", "steps", or internal logic
+- PASS = only "PASS"
+- FAIL = "FAIL" + one (optionally two) short helpful sentences
+- Never reference rules, steps, or internal logic
 - Never comment on medical correctness
-- Keep language simple, gentle, and professional
-- Assume any non-empty text field is intentional unless it fits the spam rule
-
------------------------------------------------------
-EXAMPLES
------------------------------------------------------
-
-[Example A: Sanity PASS]
-SanityCheckResult: PASS
-Expected output:
-PASS
-
-[Example B: Surgeon routing issue]
-SanityCheckResult: Invalid surgeon routing: check Next Available vs Specific Surgeon data.
-Expected output:
-FAIL
-You cannot request the next available surgeon and also choose a specific surgeon at the same time. Please choose one option and resubmit.
-
-[Example C: FIT section issue]
-SanityCheckResult: Invalid FIT section: check Positive FIT vs Reason for Ineligibility.
-Expected output:
-FAIL
-Please make sure your Positive FIT choice matches the Reason for Ineligibility (YES needs a reason; NO should not have one). Please update and resubmit.
-
-[Example D: Other Condition issue]
-SanityCheckResult: Invalid Other Condition section: flag/text mismatch.
-Expected output:
-FAIL
-If you select Other Condition, you also need to describe it, or leave both unselected and blank. Please update and resubmit.
-
-[Example E: Multiple issues]
-SanityCheckResult: Wrong form: Program name does not match required value. | Invalid FIT section: check Positive FIT vs Reason for Ineligibility.
-Expected output:
-FAIL
-wrong form — this does not appear to be the FAST General Surgery Referral form.
+- Keep explanations descriptive but simple and polite
+- Assume any meaningful text is intentional unless spam-like
 
 -----------------------------------------------------
 BEGIN INPUT
@@ -181,6 +136,7 @@ Extracted Form Data:
 {form_data_text}
 END INPUT
 """
+
 
         # Optional: you could early-return here in Python as well
         # if sanity_str == "PASS":
