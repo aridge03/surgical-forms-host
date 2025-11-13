@@ -31,24 +31,26 @@ def name_to_dt(name: str):
     except ValueError:
         return None
 
+
 # ---------- UI ----------
 st.set_page_config(page_title="Forms Dashboard", page_icon="📂", layout="wide")
 st.markdown("""
 <style>
-/* Streamlit multiselect selected tag */
 .stMultiSelect [data-baseweb="tag"] {
-    background-color: #e5e7eb !important; /* soft grey */
-    color: #111827 !important; /* dark text for readability */
-    border: 1px solid #d1d5db !important; /* light grey border */
+    background-color: #e5e7eb !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-app_root = Path(__file__).resolve().parents[1]  # one level up from /pages
+app_root = Path(__file__).resolve().parents[1]
 logo_path = app_root / "cpe-government-of-alberta-logo.jpg"
 if logo_path.exists():
     st.image(Image.open(logo_path), width=220)
+
 st.title("Forms Dashboard")
+
 
 # ---- load blobs ----
 container = "filled-forms"
@@ -59,72 +61,67 @@ if blobs_df.empty:
     st.info("No files to open.")
     st.stop()
 
-# derive status and timestamp from filename
+# add derived columns
 blobs_df = blobs_df.copy()
 blobs_df["status"] = blobs_df["name"].map(infer_status_from_name)
 blobs_df["timestamp"] = blobs_df["name"].map(name_to_dt)
 
-# ---- filters (sidebar) ----
+
+# ---- sidebar filters ----
 with st.sidebar:
     st.header("Filters")
 
     # status filter
     status_options = ["pass", "fail"]
     selected_status = st.multiselect(
-        "Status",
-        options=status_options,
-        default=status_options
+        "Status", options=status_options, default=status_options
     )
 
-    # date filter (based on filename timestamp)
+    # date filter
     ts_only = blobs_df.dropna(subset=["timestamp"])
     date_range = None
     if ts_only.empty:
-        st.caption("No timestamps detected in filenames; date filter disabled.")
+        st.caption("No timestamps found in filenames.")
     else:
         min_dt, max_dt = ts_only["timestamp"].min(), ts_only["timestamp"].max()
-        start_default, end_default = min_dt.date(), max_dt.date()
+        default = (min_dt.date(), max_dt.date())
 
-        # SAFE: works for single date or range
-        date_input_value = st.date_input(
-            "Date range",
-            (start_default, end_default)
-        )
+        date_input = st.date_input("Date range", default)
 
-        if isinstance(date_input_value, tuple) and len(date_input_value) == 2:
-            start_date, end_date = date_input_value
-        elif isinstance(date_input_value, date):
-            start_date = end_date = date_input_value
+        if isinstance(date_input, tuple) and len(date_input) == 2:
+            start_date, end_date = date_input
+        elif isinstance(date_input, date):
+            start_date = end_date = date_input
         else:
-            start_date, end_date = start_default, end_default
+            start_date, end_date = default
 
         date_range = (start_date, end_date)
 
-# apply filters
+
+# ---- apply filters ----
 filtered = blobs_df[blobs_df["status"].isin(selected_status)].copy()
 
 if date_range:
     start_dt = datetime.combine(date_range[0], datetime.min.time())
     end_dt   = datetime.combine(date_range[1], datetime.max.time())
     has_ts = filtered["timestamp"].notna()
+
     filtered = pd.concat(
         [
-            filtered[~has_ts],  # keep files without timestamps
+            filtered[~has_ts],
             filtered[has_ts & filtered["timestamp"].between(start_dt, end_dt)]
         ],
         ignore_index=True
     )
 
-# sort newest first (then name)
 filtered = filtered.sort_values(
-    by=["timestamp", "name"],
-    ascending=[False, True],
-    na_position="last"
+    by=["timestamp", "name"], ascending=[False, True], na_position="last"
 ).reset_index(drop=True)
 
 if filtered.empty:
-    st.info("No files match the current filters.")
+    st.info("No files match filters.")
     st.stop()
+
 
 # ---- selector ----
 selected = st.selectbox(
@@ -133,7 +130,8 @@ selected = st.selectbox(
     format_func=lambda x: f"{status_icon(infer_status_from_name(x))} {x}"
 )
 
-# ---- details ----
+
+# ---- details section ----
 if selected:
     try:
         df = read_csv_blob(container, selected)
@@ -141,69 +139,16 @@ if selected:
         st.error(f"Failed to read CSV: {e}")
         st.stop()
 
-    st.markdown("### Extracted Data")
     if df.empty:
         st.warning("This CSV has no rows.")
     else:
-        # take first row as a dict
         record = df.iloc[0].to_dict()
 
-        # pull out the special fields so they don't appear in the main list
+        # pull special fields off first
         message_text = record.pop("message", None)
         failed_raw   = record.pop("failed", "")
 
-        # build error list from 'failed' column
-        if isinstance(failed_raw, str):
-            error_list = [
-                e.strip() for e in failed_raw.split("|")
-                if e.strip() and e.strip().upper() != "PASS"
-            ]
-        elif isinstance(failed_raw, list):
-            error_list = [e for e in failed_raw if isinstance(e, str) and e.strip()]
-        else:
-            error_list = []
-
-        # vertical table of remaining fields
-        vertical_df = pd.DataFrame(list(record.items()), columns=["Field", "Value"])
-
-        # map which error messages relate to which fields
-        field_error_map = {
-            "Program name": [
-                "Wrong form: Program name",
-            ],
-            "Refer to Next Available Surgeon": [
-                "Invalid surgeon routing",
-            ],
-            "Refer to Specific Hospital or Surgeon": [
-                "Invalid surgeon routing",
-            ],
-            "Positive FIT": [
-                "Invalid FIT section",
-            ],
-            "Reason for Ineligibility": [
-                "Invalid FIT section",
-            ],
-            "Other Condition Check": [
-                "Invalid Other Condition section",
-            ],
-            "Other Condition": [
-                "Invalid Other Condition section",
-            ],
-        }
-
-        def highlight_errors(row):
-            field_name = str(row["Field"])
-            keywords = field_error_map.get(field_name, [])
-            for err in error_list:
-                for kw in keywords:
-                    if kw in err:
-                        return ["background-color: #fee2e2"] * len(row)
-            return [""] * len(row)
-
-        styled = vertical_df.style.apply(highlight_errors, axis=1)
-        st.dataframe(styled, use_container_width=True)
-
-        # show the message from the reply generator under the table
+        # ---- show validation message ABOVE table ----
         if message_text:
             st.markdown("#### Validation Message")
             st.text_area(
@@ -213,6 +158,62 @@ if selected:
                 disabled=True
             )
 
+        # ---- Extracted data section ----
+        st.markdown("### Extracted Data")
+
+        # build error list
+        if isinstance(failed_raw, str):
+            error_list = [
+                e.strip() for e in failed_raw.split("|")
+                if e.strip() and e.strip().upper() != "PASS"
+            ]
+        else:
+            error_list = []
+
+        error_lower = [e.lower() for e in error_list]
+
+        # ---- derive flags ----
+        wrong_form_flag = any("wrong form" in e for e in error_lower)
+        surgeon_flag    = any("available surgeon" in e for e in error_lower)
+        fit_flag        = any("positive fit" in e for e in error_lower)
+        other_flag      = any("other condition" in e for e in error_lower)
+
+        vertical_df = pd.DataFrame(list(record.items()), columns=["Field", "Value"])
+
+        def highlight_errors(row):
+            field_name = str(row["Field"])
+
+            # ALL fields red for wrong form
+            if wrong_form_flag:
+                return ["background-color: #fee2e2"] * len(row)
+
+            # surgeon routing issue
+            if surgeon_flag and field_name in [
+                "Refer to Next Available Surgeon",
+                "Refer to Specific Hospital or Surgeon"
+            ]:
+                return ["background-color: #fee2e2"] * len(row)
+
+            # Positive FIT issue
+            if fit_flag and field_name in [
+                "Positive FIT",
+                "Reason for Ineligibility"
+            ]:
+                return ["background-color: #fee2e2"] * len(row)
+
+            # Other Condition issue
+            if other_flag and field_name in [
+                "Other Condition Check",
+                "Other Condition"
+            ]:
+                return ["background-color: #fee2e2"] * len(row)
+
+            return [""]
+
+        styled = vertical_df.style.apply(highlight_errors, axis=1)
+        st.dataframe(styled, use_container_width=True)
+
+    # download button
     st.download_button(
         "Download this CSV",
         data=df.to_csv(index=False).encode("utf-8"),
